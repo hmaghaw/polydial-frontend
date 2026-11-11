@@ -1,0 +1,21 @@
+# admin.polydial.com -> :3000, restaurant.polydial.com -> :3001 (matches polydial.com.conf)
+services:
+  admin:
+    build: { context: ., args: { APP: admin } }
+    image: polydial/admin-frontend:latest
+    ports: ["3000:80"]
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-https://api.polydial.com}
+      USE_MOCKS: ${USE_MOCKS:-false}
+      APP_NAME: PolyDial Admin
+    restart: unless-stopped
+
+  restaurant:
+    build: { context: ., args: { APP: restaurant } }
+    image: polydial/restaurant-frontend:latest
+    ports: ["3002:80"]
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-https://api.polydial.com}
+      USE_MOCKS: ${USE_MOCKS:-false}
+      APP_NAME: PolyDial Restaurant
+    restart: unless-stopped

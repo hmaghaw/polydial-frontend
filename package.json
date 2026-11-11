@@ -1,0 +1,11 @@
+{
+  "name": "polydial-frontend",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:admin": "npm run dev -w @polydial/admin",
+    "dev:restaurant": "npm run dev -w @polydial/restaurant",
+    "build": "npm run build -w @polydial/admin && npm run build -w @polydial/restaurant",
+    "typecheck": "npm run typecheck -w @polydial/admin && npm run typecheck -w @polydial/restaurant"
+  }
+}
