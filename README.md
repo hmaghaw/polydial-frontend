@@ -52,7 +52,7 @@ npm run typecheck
 npm run build
 ```
 
-Dev mode reads `apps/*/public/env.js`, which has mocks on by default.
+Dev and build both read the repo-root `.env` (`API_BASE_URL`, `USE_MOCKS`, `APP_NAME`): a small Vite plugin (`packages/shared/vite-env-plugin.ts`) serves `/env.js` from it in `npm run dev:*` and writes it into `dist/` on `npm run build`. Edits to `.env` apply on the next page load. With no `.env`, the API defaults to `https://api.polydial.com` and mocks are off.
 
 ### Demo / mock mode
 
@@ -78,13 +78,21 @@ docker-compose.yml
 
 ## Connecting the real API
 
-The API contract was **inferred from `polydial_schema.sql`**. Paths live in one file, `packages/shared/src/api/endpoints.ts`, and the mock in `mocks/router.ts` implements those same paths. To match the real backend, change paths and payloads there. Pages don't need to change. Conventions assumed:
+The portals talk to the PolyDial Flask API (`hmaghaw/appointment_system`, `appointment_app/routes`). `packages/shared/src/api/endpoints.ts` picks the implementation at startup:
 
-- Auth: `POST /auth/login` → `{ token, user, business }`. Also `/auth/signup`, `/auth/me`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/verify-email`, `/auth/oauth/:provider/callback`, `/auth/clover`. A 401 on any call signs the user out.
-- REST CRUD with `GET/POST /things` and `GET/PUT/DELETE /things/:id`. Rows use the schema's snake_case columns.
-- Restaurant resources sit under `/restaurant/*`: menus, sections, availabilities, items, categories, option-groups, options, modifier-groups, modifiers, tags, combo-groups, combo-group-items, orders (`?scope=active|history`, `PATCH /orders/:id/status`) and `POST /clover/sync`.
-- Items carry their relations as id arrays (`category_ids`, `option_group_ids`, `modifier_group_ids`, `tag_ids`). Menus carry `availability_ids` and sections carry `item_ids`. These map to the schema's join tables.
-- Money: business balance is in cents (`balance_cents`, as in the ledger). Item and order prices are decimals.
+- `endpoints.flask.ts` (default): maps every call to the real route, e.g. login → `POST /api/auth/login`, calls → `POST /api/call-meta/list`, menus → `POST /api/restaurants/list_menus`. It injects `business_id` from the session JWT, unwraps the API's varying response envelopes, and converts shapes to `types.ts` (day numbering, naive datetimes, join-table diffs for item/section/menu relations).
+- `endpoints.mock.ts` + `mocks/router.ts` (`USE_MOCKS=true`): the in-browser demo backend.
+
+Pages only use `endpoints.ts`, so they don't change between the two.
+
+Notes on the live API:
+
+- There is no `/auth/me`; the session is rebuilt from the JWT, the cached user and `POST /api/business/get`.
+- Requests don't send cookies (`credentials` omitted) because the API's CORS config allows `*`.
+- Features with no API route yet reject with a clear "isn't available on the PolyDial API yet" message: team management, voice analytics, call insights, sentiment, reports, the database browser, the contact form, Google sign-in, and editing/deleting translations. Phone "primary" and "forwarding" settings are likewise not saved.
+- Partial support: appointment edits only reschedule (`PUT /api/appointments` takes date + time); business profile edits are limited to the auto-recharge fields `PUT /api/business` accepts; top-up calls `POST /api/stripe/topup`, which credits the balance directly without taking a payment.
+
+For testing, the API can accept any password for an existing user: set `LOGIN_SKIP_PASSWORD_CHECK=true` in the API's `.env`.
 
 ## Screen coverage
 
